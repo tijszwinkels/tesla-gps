@@ -1,0 +1,9 @@
+# Binary files
+/tesla-gps
+
+# Dependency directories
+vendor/
+
+# Misc
+tesla-gps.iml
+.idea
