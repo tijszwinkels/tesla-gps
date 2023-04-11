@@ -2,13 +2,17 @@
 
 Tesla GPS is a simple command-line tool to stream your Tesla vehicle's GPS coordinates in real-time and save them in GPX format.
 
-## ⚠️ Warning
+## Vehicle Sleep
 
-This tool keeps your Tesla vehicle awake while running, which will prevent it from going into sleep mode and will increase phantom drain. This issue will be addressed in a later release.
+API-calls can prevent the vehicle from going to sleep, which would cause the battery of the vehicle to drain while idle at a higher rate than normal (vampire drain). The software will try to prevent this, using a [similar method to TeslaFi](https://support.teslafi.com/knowledge-bases/2/articles/640-enabling-sleep-settings-to-limit-vampire-loss).
+
+If you miss gps-data (or you want your vehicle to stay awake), run the software with the `--wakeup` flag. This will keep the vehicle awake.
+If you notice that your vehicle's battery is draining faster than normal, stop the software and file an issue.
+
 
 ## Prerequisites
 
-### Installing Go (if not installed)
+### Installing Go
 
 If you don't have Go installed, you can download it from the [official Go website](https://golang.org/dl/) and follow the [installation instructions](https://golang.org/doc/install) for your operating system.
 
