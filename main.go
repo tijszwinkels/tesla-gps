@@ -142,6 +142,7 @@ func run(ctx context.Context, tokenPath string) error {
 				stayAwakeAfterDrivingExpiry = time.Time{}
 				if *verbose {
 					fmt.Fprintf(os.Stderr, "Ssshh. Vehicle is sleeping. Not doing anything until it wakes up.\n")
+					time.Sleep(time.Second * 30)
 				}
 				continue
 			} else if !goToSleepExpiry.IsZero() {
@@ -170,15 +171,18 @@ func run(ctx context.Context, tokenPath string) error {
 		}
 
 		// If the car becomes inactive and the timer isn't running yet, start the sleep timer
-		if (driveState.ShiftState != "D" && driveState.ShiftState != "R") && stayAwakeAfterDrivingExpiry.IsZero() {
-			stayAwakeAfterDrivingExpiry = time.Now().Add(dontSleepAfterDrivingDuration)
-			if *verbose {
-				fmt.Fprintf(os.Stderr, "Car became inactive. Setting 'stay awake' timer.\n")
+		if driveState.ShiftState != "D" && driveState.ShiftState != "R" {
+			if stayAwakeAfterDrivingExpiry.IsZero() {
+				stayAwakeAfterDrivingExpiry = time.Now().Add(dontSleepAfterDrivingDuration)
+				if *verbose {
+					fmt.Fprintf(os.Stderr, "Car became inactive. Setting 'stay awake' timer.\n")
+				}
 			}
+			time.Sleep(time.Second * 4)
 		} else if (driveState.ShiftState == "D" || driveState.ShiftState == "R") && !stayAwakeAfterDrivingExpiry.IsZero() {
 			stayAwakeAfterDrivingExpiry = time.Time{}
 			if *verbose {
-				fmt.Fprintf(os.Stderr, "Car became active. Stopping 'stay awake' timer.\n")
+				fmt.Fprintf(os.Stderr, "Car is active. Stopping 'stay awake' timer.\n")
 			}
 		}
 
