@@ -8,19 +8,27 @@ This tool keeps your Tesla vehicle awake while running, which will prevent it fr
 
 ## Prerequisites
 
+### Installing Go (if not installed)
+
+If you don't have Go installed, you can download it from the [official Go website](https://golang.org/dl/) and follow the [installation instructions](https://golang.org/doc/install) for your operating system.
+
+Make sure to set your `GOPATH` environment variable and add `$GOPATH/bin` to your `PATH` variable, as described in the [Go documentation](https://golang.org/doc/gopath_code.html#GOPATH).
+
+### Obtaining a Tesla API Token
+
 To use Tesla GPS, you need a Tesla API token. You can obtain one by following the instructions in the [Tesla JSON API (Unofficial) Documentation](https://tesla-api.timdorr.com/api-basics/authentication).
 
-Alternatively, you can use the Android 'Tesla Tokens' app to obtain the token: [Tesla Tokens app in the Google Play Store](https://play.google.com/store/apps/details?id=net.leveugle.teslatokens&hl=en&gl=US).
+Alternatively, you can use the Android 'Tesla Tokens' app to obtain the token: [Google Play Store](https://play.google.com/store/apps/details?id=net.leveugle.teslatokens&hl=en&gl=US)
 
-Create a JSON file (f.e. `tesla.token`), with the following structure, replacing `my-refresh-token` with the refresh token you obtained:
+Create a JSON file with the following structure, replacing `my-refresh-token` with the refresh token you obtained:
 
 ```json
 {
-        "refresh_token": "my-refresh-token"
+  "refresh_token": "my-refresh-token"
 }
 ```
 
-## Installation
+## Build
 
 1. Clone this repository:
 ```
