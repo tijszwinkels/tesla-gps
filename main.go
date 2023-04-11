@@ -12,6 +12,7 @@ import (
 	"github.com/bogosj/tesla"
 )
 
+var wakeup = flag.Bool("wakeup", false, "wake up the vehicle and keep it awake")
 var tokenPath = flag.String("token", "", "path to token file")
 
 func main() {
@@ -83,10 +84,7 @@ func run(ctx context.Context, tokenPath string) error {
 	}
 
 	if id == 0 {
-		for i, v := range v {
-			if i > 0 {
-				fmt.Println("----")
-			}
+		for _, v := range v {
 			id = v.ID
 		}
 	}
@@ -94,14 +92,23 @@ func run(ctx context.Context, tokenPath string) error {
 	if err != nil {
 		return err
 	}
-	vh.Wakeup()
+	if *wakeup {
+		vh.Wakeup()
+	}
+
+	var prevDriveState *tesla.DriveState
 	for {
 		driveState, err := vh.DriveState()
 		if err != nil {
 			fmt.Errorf("Couldn't retrieve drivestate: %v", err)
 			continue
 		}
+		if prevDriveState != nil && driveState.Latitude == prevDriveState.Latitude && driveState.Longitude == prevDriveState.Longitude && driveState.GpsAsOf == prevDriveState.GpsAsOf {
+			// Skip writing this point if it's identical to the previous one
+			continue
+		}
 		_ = writeTrkpt(driveState)
+		prevDriveState = driveState
 		time.Sleep(time.Millisecond * 800)
 	}
 
