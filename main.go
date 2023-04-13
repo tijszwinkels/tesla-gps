@@ -12,12 +12,18 @@ import (
 	"github.com/bogosj/tesla"
 )
 
+// Command-line parameters
 var wakeup = flag.Bool("wakeup", false, "wake up the vehicle and keep it awake")
 var verbose = flag.Bool("verbose", false, "verbose logging to stderr")
 var tokenPath = flag.String("token", "", "path to token file")
 
+// Constants
 const dontSleepAfterDrivingDuration = 30 * time.Minute
 const tryToSleepDuration = 15 * time.Minute
+
+// Timers (Expiry times)
+var stayAwakeAfterDrivingExpiry time.Time
+var goToSleepExpiry time.Time
 
 func main() {
 	flag.Parse()
@@ -74,6 +80,48 @@ func writeTrkpt(driveState *tesla.DriveState) error {
 	return nil
 }
 
+// Returns true if we should let the car sleep based on timers
+// Beware: Side-effects. Depends on some logic in the run function.
+// TODO: More refactoring
+func shouldLetCarSleep(vehicle *tesla.Vehicle) bool {
+	if !*wakeup {
+		now := time.Now()
+
+		if !stayAwakeAfterDrivingExpiry.IsZero() && now.After(stayAwakeAfterDrivingExpiry) {
+			if *verbose {
+				fmt.Fprintf(os.Stderr, "30m after driving timer expired. Setting 'go to sleep' timer.\n")
+			}
+			goToSleepExpiry = now.Add(tryToSleepDuration)
+			stayAwakeAfterDrivingExpiry = time.Time{}
+		}
+
+		if !goToSleepExpiry.IsZero() && now.After(goToSleepExpiry) {
+			if *verbose {
+				fmt.Fprintf(os.Stderr, "15m 'go to sleep' timer expired. Restarting 'stay awake' timer again.\n")
+			}
+			goToSleepExpiry = time.Time{}
+			stayAwakeAfterDrivingExpiry = now.Add(dontSleepAfterDrivingDuration)
+		}
+
+		if vehicle.State == "asleep" {
+			goToSleepExpiry = time.Time{}
+			stayAwakeAfterDrivingExpiry = time.Time{}
+			if *verbose {
+				fmt.Fprintf(os.Stderr, "Ssshh. Vehicle is sleeping. Not doing anything until it wakes up.\n")
+				time.Sleep(time.Second * 30)
+			}
+			return true
+		} else if !goToSleepExpiry.IsZero() {
+			if *verbose {
+				fmt.Fprintf(os.Stderr, "Singing lullabies, waiting for the car to go to sleep for 15m.\n")
+				fmt.Fprintf(os.Stderr, "Please note; If the car starts driving within these 15m, we might miss it\n")
+			}
+			return true
+		}
+	}
+	return false
+}
+
 func run(ctx context.Context, tokenPath string) error {
 	// Create client
 	client, err := tesla.NewClient(ctx, tesla.WithTokenFile(tokenPath))
@@ -101,14 +149,10 @@ func run(ctx context.Context, tokenPath string) error {
 		vehicle.Wakeup()
 	}
 
-	// Get the drive-state, and write it in gpx format
 	var prevDriveState *tesla.DriveState
 
-	// Expiry times
-	var stayAwakeAfterDrivingExpiry time.Time
-	var goToSleepExpiry time.Time
-
 	for {
+		// Main loop
 		time.Sleep(time.Millisecond * 800)
 
 		// Get the vehicle state (Doesn't keep awake)
@@ -118,46 +162,15 @@ func run(ctx context.Context, tokenPath string) error {
 		}
 
 		// Handle desired sleeping behavior of the vehicle
-		if !*wakeup {
-			now := time.Now()
-
-			if !stayAwakeAfterDrivingExpiry.IsZero() && now.After(stayAwakeAfterDrivingExpiry) {
-				if *verbose {
-					fmt.Fprintf(os.Stderr, "30m after driving timer expired. Setting 'go to sleep' timer.\n")
-				}
-				goToSleepExpiry = now.Add(tryToSleepDuration)
-				stayAwakeAfterDrivingExpiry = time.Time{}
-			}
-
-			if !goToSleepExpiry.IsZero() && now.After(goToSleepExpiry) {
-				if *verbose {
-					fmt.Fprintf(os.Stderr, "15m 'go to sleep' timer expired. Restarting 'stay awake' timer again.\n")
-				}
-				goToSleepExpiry = time.Time{}
-				stayAwakeAfterDrivingExpiry = now.Add(dontSleepAfterDrivingDuration)
-			}
-
-			if vehicle.State == "asleep" {
-				goToSleepExpiry = time.Time{}
-				stayAwakeAfterDrivingExpiry = time.Time{}
-				if *verbose {
-					fmt.Fprintf(os.Stderr, "Ssshh. Vehicle is sleeping. Not doing anything until it wakes up.\n")
-					time.Sleep(time.Second * 30)
-				}
-				continue
-			} else if !goToSleepExpiry.IsZero() {
-				if *verbose {
-					fmt.Fprintf(os.Stderr, "Singing lullabies, waiting for the car to go to sleep for 15m.\n")
-					fmt.Fprintf(os.Stderr, "Please note; If the car starts driving within these 15m, we might miss it\n")
-				}
-				continue
-			}
+		if shouldLetCarSleep(vehicle) {
+			continue
 		}
 
 		// Get the drive state (Does keep awake)
 		driveState, err := vehicle.DriveState()
 		if err != nil {
 			if *verbose {
+				// This happens occasionally
 				fmt.Fprintf(os.Stderr, "Couldn't retrieve drivestate: %v", err)
 			}
 			continue
@@ -165,28 +178,35 @@ func run(ctx context.Context, tokenPath string) error {
 		if *verbose {
 			fmt.Fprintf(os.Stderr, "Shift state %v\n", driveState.ShiftState)
 		}
-		if prevDriveState != nil && driveState.Latitude == prevDriveState.Latitude && driveState.Longitude == prevDriveState.Longitude && driveState.GpsAsOf == prevDriveState.GpsAsOf {
-			// Skip writing this point if it's identical to the previous one
-			continue
-		}
 
-		// If the car becomes inactive and the timer isn't running yet, start the sleep timer
-		if driveState.ShiftState != "D" && driveState.ShiftState != "R" {
+		if (driveState.ShiftState != "D") && (driveState.ShiftState != "R") && (driveState.ShiftState != "N") {
+			// Car is not driving
 			if stayAwakeAfterDrivingExpiry.IsZero() {
+				// If the car becomes inactive and the timer isn't running yet, start the sleep timer
 				stayAwakeAfterDrivingExpiry = time.Now().Add(dontSleepAfterDrivingDuration)
 				if *verbose {
 					fmt.Fprintf(os.Stderr, "Car became inactive. Setting 'stay awake' timer.\n")
 				}
 			}
 			time.Sleep(time.Second * 4)
-		} else if (driveState.ShiftState == "D" || driveState.ShiftState == "R") && !stayAwakeAfterDrivingExpiry.IsZero() {
-			stayAwakeAfterDrivingExpiry = time.Time{}
-			if *verbose {
-				fmt.Fprintf(os.Stderr, "Car is active. Stopping 'stay awake' timer.\n")
+		} else if driveState.ShiftState == "D" || driveState.ShiftState == "R" || driveState.ShiftState == "N" {
+			// Car is driving
+			if !stayAwakeAfterDrivingExpiry.IsZero() {
+				stayAwakeAfterDrivingExpiry = time.Time{}
+				if *verbose {
+					fmt.Fprintf(os.Stderr, "Car is active. Stopping 'stay awake' timer.\n")
+				}
 			}
+
+			if prevDriveState != nil && driveState.Latitude == prevDriveState.Latitude && driveState.Longitude == prevDriveState.Longitude && driveState.GpsAsOf == prevDriveState.GpsAsOf {
+				// Skip writing this point if it's identical to the previous one
+				continue
+			}
+
+			// Write the location to GPX
+			_ = writeTrkpt(driveState)
 		}
 
-		_ = writeTrkpt(driveState)
 		prevDriveState = driveState
 	}
 
