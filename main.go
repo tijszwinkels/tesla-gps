@@ -15,6 +15,7 @@ import (
 // Command-line parameters
 var wakeup = flag.Bool("wakeup", false, "wake up the vehicle and keep it awake")
 var verbose = flag.Bool("verbose", false, "verbose logging to stderr")
+var singleTrack = flag.Bool("singleTrack", false, "Don't open a new GPX track for each drive")
 var tokenPath = flag.String("token", "", "path to token file")
 
 // Constants
@@ -63,11 +64,15 @@ func main() {
 func writeGPXHeader() {
 	fmt.Println("<?xml version=\"1.0\" encoding=\"UTF-8\"?>")
 	fmt.Println("<gpx version=\"1.1\" creator=\"Created by Tesla-gps (https://github.com/tijszwinkels/tesla-gps)\" xmlns=\"http://www.topografix.com/GPX/1/1\">")
-	//writeOpenTrack()
+	if *singleTrack {
+		writeOpenTrack()
+	}
 }
 
 func writeGPXFooter() {
-	//writeCloseTrack()
+	if *singleTrack {
+		writeCloseTrack()
+	}
 	fmt.Println("</gpx>")
 }
 
@@ -189,7 +194,7 @@ func run(ctx context.Context, tokenPath string) error {
 
 		if (driveState.ShiftState != "D") && (driveState.ShiftState != "R") && (driveState.ShiftState != "N") {
 			// Car is not driving
-			if prevDriveState != nil && ((prevDriveState.ShiftState == "D") || (prevDriveState.ShiftState == "R") || (prevDriveState.ShiftState == "N")) {
+			if !*singleTrack && (prevDriveState != nil) && ((prevDriveState.ShiftState == "D") || (prevDriveState.ShiftState == "R") || (prevDriveState.ShiftState == "N")) {
 				// Car just became inactive, close track.
 				fmt.Fprintf(os.Stderr, "Car became inactive. Closing gpx track.\n")
 				writeCloseTrack()
@@ -204,7 +209,7 @@ func run(ctx context.Context, tokenPath string) error {
 			time.Sleep(time.Second * 4)
 		} else if driveState.ShiftState == "D" || driveState.ShiftState == "R" || driveState.ShiftState == "N" {
 			// Car is driving
-			if (prevDriveState == nil) || ((prevDriveState.ShiftState != "D") && (prevDriveState.ShiftState != "R") && (prevDriveState.ShiftState != "N")) {
+			if !*singleTrack && (prevDriveState == nil || ((prevDriveState.ShiftState != "D") && (prevDriveState.ShiftState != "R") && (prevDriveState.ShiftState != "N"))) {
 				// Car just became active, open track.
 				fmt.Fprintf(os.Stderr, "Car became active. Opening gpx track.\n")
 				writeOpenTrack()
