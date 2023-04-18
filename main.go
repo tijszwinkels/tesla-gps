@@ -63,14 +63,22 @@ func main() {
 func writeGPXHeader() {
 	fmt.Println("<?xml version=\"1.0\" encoding=\"UTF-8\"?>")
 	fmt.Println("<gpx version=\"1.1\" creator=\"Created by Tesla-gps (https://github.com/tijszwinkels/tesla-gps)\" xmlns=\"http://www.topografix.com/GPX/1/1\">")
+	//writeOpenTrack()
+}
+
+func writeGPXFooter() {
+	//writeCloseTrack()
+	fmt.Println("</gpx>")
+}
+
+func writeOpenTrack() {
 	fmt.Println("<trk>")
 	fmt.Println("<trkseg>")
 }
 
-func writeGPXFooter() {
+func writeCloseTrack() {
 	fmt.Println("</trkseg>")
 	fmt.Println("</trk>")
-	fmt.Println("</gpx>")
 }
 
 func writeTrkpt(driveState *tesla.DriveState) error {
@@ -149,7 +157,7 @@ func run(ctx context.Context, tokenPath string) error {
 		vehicle.Wakeup()
 	}
 
-	var prevDriveState *tesla.DriveState
+	var prevDriveState *tesla.DriveState = nil
 
 	for {
 		// Main loop
@@ -181,6 +189,11 @@ func run(ctx context.Context, tokenPath string) error {
 
 		if (driveState.ShiftState != "D") && (driveState.ShiftState != "R") && (driveState.ShiftState != "N") {
 			// Car is not driving
+			if prevDriveState != nil && ((prevDriveState.ShiftState == "D") || (prevDriveState.ShiftState == "R") || (prevDriveState.ShiftState == "N")) {
+				// Car just became inactive, close track.
+				fmt.Fprintf(os.Stderr, "Car became inactive. Closing gpx track.\n")
+				writeCloseTrack()
+			}
 			if stayAwakeAfterDrivingExpiry.IsZero() {
 				// If the car becomes inactive and the timer isn't running yet, start the sleep timer
 				stayAwakeAfterDrivingExpiry = time.Now().Add(dontSleepAfterDrivingDuration)
@@ -191,6 +204,11 @@ func run(ctx context.Context, tokenPath string) error {
 			time.Sleep(time.Second * 4)
 		} else if driveState.ShiftState == "D" || driveState.ShiftState == "R" || driveState.ShiftState == "N" {
 			// Car is driving
+			if (prevDriveState == nil) || ((prevDriveState.ShiftState != "D") && (prevDriveState.ShiftState != "R") && (prevDriveState.ShiftState != "N")) {
+				// Car just became active, open track.
+				fmt.Fprintf(os.Stderr, "Car became active. Opening gpx track.\n")
+				writeOpenTrack()
+			}
 			if !stayAwakeAfterDrivingExpiry.IsZero() {
 				stayAwakeAfterDrivingExpiry = time.Time{}
 				if *verbose {
