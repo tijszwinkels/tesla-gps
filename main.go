@@ -166,10 +166,14 @@ func run(ctx context.Context, tokenPath string) error {
 
 	for {
 		// Main loop
-		time.Sleep(time.Millisecond * 800)
+		time.Sleep(time.Millisecond * 900)
 
 		// Get the vehicle state (Doesn't keep awake)
 		vehicle, err := client.Vehicle(id)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Couldn't retrieve vehicle state: %v\n", err)
+			continue
+		}
 		if *verbose {
 			fmt.Fprintf(os.Stderr, "Vehicle state %v\n", vehicle.State)
 		}
