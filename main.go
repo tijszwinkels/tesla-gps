@@ -166,7 +166,7 @@ func run(ctx context.Context, tokenPath string) error {
 
 	for {
 		// Main loop
-		time.Sleep(time.Millisecond * 900)
+		time.Sleep(time.Millisecond * 5900)
 
 		// Get the vehicle state (Doesn't keep awake)
 		vehicle, err := client.Vehicle(id)
