@@ -213,7 +213,7 @@ func run(ctx context.Context, tokenPath string) error {
 			time.Sleep(time.Second * 4)
 		} else if driveState.ShiftState == "D" || driveState.ShiftState == "R" || driveState.ShiftState == "N" {
 			// Car is driving
-			if !*singleTrack && (prevDriveState == nil || ((prevDriveState.ShiftState != "D") && (prevDriveState.ShiftState != "R") && (prevDriveState.ShiftState != "N"))) {
+			if !*singleTrack && (prevDriveState != nil && ((prevDriveState.ShiftState != "D") && (prevDriveState.ShiftState != "R") && (prevDriveState.ShiftState != "N"))) {
 				// Car just became active, open track.
 				fmt.Fprintf(os.Stderr, "Car became active. Opening gpx track.\n")
 				writeOpenTrack()
