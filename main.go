@@ -184,14 +184,15 @@ func run(ctx context.Context, tokenPath string) error {
 		}
 
 		// Get the drive state (Does keep awake)
-		driveState, err := vehicle.DriveState()
+		data, err := vehicle.Data()
 		if err != nil {
 			if *verbose {
 				// This happens occasionally
-				fmt.Fprintf(os.Stderr, "Couldn't retrieve drivestate: %v", err)
+				fmt.Fprintf(os.Stderr, "Couldn't get data: %v", err)
 			}
 			continue
 		}
+		driveState := &data.Response.DriveState
 		if *verbose {
 			fmt.Fprintf(os.Stderr, "Shift state %v\n", driveState.ShiftState)
 		}
