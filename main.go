@@ -202,6 +202,7 @@ func run(ctx context.Context, tokenPath string) error {
 			if !*singleTrack && (prevDriveState != nil) && ((prevDriveState.ShiftState == "D") || (prevDriveState.ShiftState == "R") || (prevDriveState.ShiftState == "N")) {
 				// Car just became inactive, close track.
 				fmt.Fprintf(os.Stderr, "Car became inactive. Closing gpx track.\n")
+				_ = writeTrkpt(driveState)
 				writeCloseTrack()
 			}
 			if stayAwakeAfterDrivingExpiry.IsZero() {
