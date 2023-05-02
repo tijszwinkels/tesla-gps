@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"math"
 	"os"
 	"os/signal"
 	"syscall"
@@ -183,7 +184,7 @@ func run(ctx context.Context, tokenPath string) error {
 			continue
 		}
 
-		// Get the drive state (Does keep awake)
+		// Get the drive state (Does keep awake, but does it still?)
 		data, err := vehicle.Data()
 		if err != nil {
 			if *verbose {
@@ -212,7 +213,11 @@ func run(ctx context.Context, tokenPath string) error {
 					fmt.Fprintf(os.Stderr, "Car became inactive. Setting 'stay awake' timer.\n")
 				}
 			}
-			time.Sleep(time.Second * 4)
+			// Data fetch doesn't seem to keep vehicle awake anymore
+			if *wakeup {
+				vehicle.Wakeup()
+			}
+			time.Sleep(time.Second * 6)
 		} else if driveState.ShiftState == "D" || driveState.ShiftState == "R" || driveState.ShiftState == "N" {
 			// Car is driving
 			if !*singleTrack && (prevDriveState != nil && ((prevDriveState.ShiftState != "D") && (prevDriveState.ShiftState != "R") && (prevDriveState.ShiftState != "N"))) {
@@ -227,7 +232,10 @@ func run(ctx context.Context, tokenPath string) error {
 				}
 			}
 
-			if prevDriveState != nil && driveState.Latitude == prevDriveState.Latitude && driveState.Longitude == prevDriveState.Longitude && driveState.GpsAsOf == prevDriveState.GpsAsOf {
+			if prevDriveState != nil &&
+				math.Abs(driveState.Latitude-prevDriveState.Latitude) < 0.00000001 &&
+				math.Abs(driveState.Longitude-prevDriveState.Longitude) < 0.00000001 &&
+				driveState.GpsAsOf == prevDriveState.GpsAsOf {
 				// Skip writing this point if it's identical to the previous one
 				continue
 			}
