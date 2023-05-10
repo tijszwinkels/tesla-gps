@@ -48,6 +48,8 @@ go build
 ```
 
 ## Usage
+
+### Basic Usage
 To stream GPS data and save it to a GPX file, run:
 ```
 ./tesla-gps --token /path/to/your/token > output.gpx
@@ -59,6 +61,18 @@ To view the live updates of the GPX file while it's being written, open another 
 ```
 tail -f output.gpx
 ```
+
+### Saving GPX Data Per Day
+To save the GPX data in a separate file per day, you can use the gpx-per-day.sh script.
+
+1. Make sure you have the tesla token in a *t.token* file in the current directory.
+2. Run the script:
+```
+./gpx-per-day.sh
+```
+
+This will start saving the GPS data in a separate file for each day, named with the format YYYY-MM-DD.gpx.
+
 
 ## License
 
