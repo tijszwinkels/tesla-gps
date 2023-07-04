@@ -77,14 +77,22 @@ func writeGPXFooter() {
 	fmt.Println("</gpx>")
 }
 
+var trackOpen = false
+
 func writeOpenTrack() {
-	fmt.Println("<trk>")
-	fmt.Println("<trkseg>")
+	if !trackOpen {
+		fmt.Println("<trk>")
+		fmt.Println("<trkseg>")
+		trackOpen = true
+	}
 }
 
 func writeCloseTrack() {
-	fmt.Println("</trkseg>")
-	fmt.Println("</trk>")
+	if trackOpen {
+		fmt.Println("</trkseg>")
+		fmt.Println("</trk>")
+		trackOpen = false
+	}
 }
 
 func writeTrkpt(driveState *tesla.DriveState) error {
